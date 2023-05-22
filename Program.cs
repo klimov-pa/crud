@@ -168,6 +168,37 @@ class Program
         };
     }
 
+    private HttpResponse? deletePerson(string method, string path,
+        Dictionary<string, string> pathParameters,
+        Dictionary<string, string> postParameters)
+    {
+        int id = people.Count;
+        int.TryParse(pathParameters.GetValueOrDefault("id", id.ToString()), out id);
+        if (!(id >= 0 && id < people.Count))
+            return null;
+        var content = new StringBuilder();
+        appendHeader(content, "Delete Person");
+        content.Append("<form method=\"post\" style=\"display:grid; grid-template-columns: auto auto; width:400px;\">");
+        content.Append("<label for=\"firstName\">First Name:</label>");
+        content.Append($"<input id=\"firstName\" type=\"text\" name=\"firstName\" value=\"{people[id].FirstName}\" disabled>");
+        content.Append("<label for=\"lastName\">Last Name:</label>");
+        content.Append($"<input id=\"lastName\" type=\"text\" name=\"lastName\" value=\"{people[id].LastName}\" disabled>");
+        content.Append("<label for=\"birthYear\">Birth Year:</label>");
+        content.Append($"<input id=\"birthYear\" type=\"number\" name=\"birthYear\" value=\"{people[id].BirthYear}\" disabled>");
+        content.Append("<div></div><button type=\"submit\">Delete</button>");
+        content.Append("</form>");
+        if (method == "POST")
+        {
+            people.RemoveAt(id);
+            content.Append("<p style=\"color:green\">Person successfully deleted!</p>");
+        }
+        appendFooter(content);
+        return new HttpResponse {
+            ContentType = "text/html; charset=utf-8",
+            ContentBytes = Encoding.UTF8.GetBytes(content.ToString()),
+        };
+    }
+
     private HttpResponse Handle(string method, string pathAndParams, byte[]? requestContent)
     {
         int questionMark = pathAndParams.IndexOf('?');
@@ -211,6 +242,8 @@ class Program
             response = addPerson(method, path, pathParameters, postParameters);
         if (response == null && path == "/edit")
             response = editPerson(method, path, pathParameters, postParameters);
+        if (response == null && path == "/delete")
+            response = deletePerson(method, path, pathParameters, postParameters);
         if (response != null)
             return response;
         Stream? f = null;
