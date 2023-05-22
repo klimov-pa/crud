@@ -7,6 +7,7 @@ class HttpResponse
 {
     public string ContentType = null!;
     public byte[] ContentBytes = new byte[0];
+    public int StatusCode = 0;
 }
 
 class Person
@@ -42,6 +43,7 @@ class Program
         return new HttpResponse {
             ContentType = "text/html; charset=utf-8",
             ContentBytes = Encoding.UTF8.GetBytes(html.ToString()),
+            StatusCode = 200,
         };
     }
 
@@ -278,9 +280,23 @@ class Program
         }
         if (response == null || response.ContentType == null)
         {
-            return responseFromContent("Not Found", "404<br>Not Found");
+            response = responseFromContent("Not Found", "404<br>Not Found");
+            response.StatusCode = 404;
         }
         return response;
+    }
+
+    private string getStatusCodeName(int statusCode)
+    {
+        switch (statusCode)
+        {
+            case 404:
+                return "Not Found";
+            case 200:
+                return "OK";
+            default:
+                throw new ArgumentException($"Unknown status code {statusCode}.");
+        }
     }
 
     public void Serve(Socket clientSocket)
@@ -357,7 +373,7 @@ class Program
         HttpResponse response = Handle(method, path, requestContent);
 
         StringBuilder serverResponse = new StringBuilder(
-              "HTTP/1.0 200 OK\r\n"
+              $"HTTP/1.0 {response.StatusCode} {getStatusCodeName(response.StatusCode)}\r\n"
             + $"Content-Type: {response.ContentType}\r\n"
             + "Connection: close\r\n");
         
