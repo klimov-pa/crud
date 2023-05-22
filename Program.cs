@@ -33,9 +33,13 @@ class Program
         content.Append("</body></html>");
     }
 
-    private HttpResponse Handle(string method, string path)
+    private HttpResponse Handle(string method, string pathAndParams)
     {
         HttpResponse response = new HttpResponse();
+        int questionMark = pathAndParams.IndexOf('?');
+        if (questionMark < 0)
+            questionMark = pathAndParams.Length;
+        string path = pathAndParams.Substring(0, questionMark);
         if (path == "/" || path == "/index")
         {
             response.ContentType = "text/html; charset=utf-8";
