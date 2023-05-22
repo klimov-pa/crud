@@ -87,7 +87,20 @@ class Program
 
             }
             response.ContentBytes = data.ToArray();
-            response.ContentType = "image/png";
+            if (path.EndsWith(".png"))
+                response.ContentType = "image/png";
+            else if (path.EndsWith(".jpg") || path.EndsWith(".jpeg"))
+                response.ContentType = "image/jpeg";
+            else if (path.EndsWith(".css"))
+                response.ContentType = "text/css";
+            else if (path.EndsWith(".js"))
+                response.ContentType = "text/javascript";
+            else if (path.EndsWith(".txt"))
+                response.ContentType = "text/plain";
+            else if (path.EndsWith(".html"))
+                response.ContentType = "text/html";
+            else
+                response.ContentType = "application/octet-stream";
         }
         if (response.ContentType == null)
         {
