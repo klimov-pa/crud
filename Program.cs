@@ -33,7 +33,7 @@ class Program
         content.Append("</body></html>");
     }
 
-    private HttpResponse Handle(string method, string pathAndParams)
+    private HttpResponse Handle(string method, string pathAndParams, byte[]? requestContent)
     {
         HttpResponse response = new HttpResponse();
         int questionMark = pathAndParams.IndexOf('?');
@@ -63,6 +63,65 @@ class Program
             responseContent.Append("</ol>");
             appendFooter(responseContent);
             response.ContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString());
+        }
+        if (path == "/add")
+        {
+            Dictionary<string, string> postParameters = new Dictionary<string, string>();
+            if (method == "POST" && requestContent != null)
+            {
+                Console.WriteLine(Encoding.ASCII.GetString(requestContent));
+                string[] parameters = Encoding.ASCII.GetString(requestContent).Split('&');
+                foreach (string parameter in parameters)
+                {
+                    string[] keyValuePair = parameter.Split('=');
+                    if (keyValuePair.Length > 0)
+                        postParameters[keyValuePair[0]] = keyValuePair[1];
+                    else
+                        postParameters[keyValuePair[0]] = "";
+                }
+            }
+            string firstName = postParameters.GetValueOrDefault("firstName", "");
+            string lastName = postParameters.GetValueOrDefault("lastName", "");
+            int birthYear = 0;
+            int.TryParse(postParameters.GetValueOrDefault("birthYear", "0"), out birthYear);
+
+            response.ContentType = "text/html; charset=utf-8";
+            var content = new StringBuilder();
+            appendHeader(content, "Add Person");
+            foreach ((string key, string value) in postParameters)
+            {
+                content.Append($"<p>Params[\"{key}\"] = \"{value}\"</p>");
+            }
+            content.Append("<form method=\"post\" style=\"display:grid; grid-template-columns: auto auto; width:400px;\">");
+            content.Append("<label for=\"firstName\">First Name:</label>");
+            content.Append($"<input id=\"firstName\" type=\"text\" name=\"firstName\" value=\"{firstName}\">");
+            content.Append("<label for=\"lastName\">Last Name:</label>");
+            content.Append($"<input id=\"lastName\" type=\"text\" name=\"lastName\" value=\"{lastName}\">");
+            content.Append("<label for=\"birthYear\">Birth Year:</label>");
+            content.Append("<input id=\"birthYear\" type=\"number\" name=\"birthYear\" value=\"" + (birthYear == 0 ? "" : birthYear) + "\">");
+            content.Append("<div></div><input type=\"submit\">");
+            content.Append("</form>");
+            if (method == "POST")
+            {
+                if (firstName.Length == 0)
+                    content.Append("<p style=\"color:red\">Fill in First Name.</p>");
+                else if (lastName.Length == 0)
+                    content.Append("<p style=\"color:red\">Fill in Last Name.</p>");
+                else if (birthYear == 0)
+                    content.Append("<p style=\"color:red\">Fill in Birth Year.</p>");
+                else if (birthYear < 1900)
+                    content.Append("<p style=\"color:red\">Birth Year should be at least 1900.</p>");
+                else if (birthYear > System.DateTime.Now.Year)
+                    content.Append($"<p style=\"color:red\">Birth Year should not be greater than {System.DateTime.Now.Year}.</p>");
+                else
+                {
+                    people.Add(new Person {FirstName = firstName, LastName = lastName, BirthYear = birthYear});
+                    content.Append("<p style=\"color:green\">Person successfully added!</p>");
+                }
+            }
+            appendFooter(content);
+            response.ContentBytes = Encoding.UTF8.GetBytes(content.ToString());
+            return response;
         }
         Stream? f = null;
         try
@@ -157,11 +216,39 @@ class Program
         string method = arr[0];
         string path = arr[1];
         string ver = arr[2];
+        int contentLength = 0;
+        int contentLengthPos = requestStr.IndexOf("Content-Length:");
+        if (contentLengthPos >= 0)
+        {
+            const int LengthOfContentLength = 15; // "Content-Length:".Length;
+            contentLengthPos += LengthOfContentLength;
+            int contentLengthEndLine = requestStr.IndexOf('\r', contentLengthPos);
+            if (contentLengthEndLine < 0)
+                contentLengthEndLine = requestStr.Length;
+            while (contentLengthPos < requestStr.Length && requestStr[contentLengthPos] == ' ')
+                ++contentLengthPos;
+            int.TryParse(requestStr.AsSpan(contentLengthPos, contentLengthEndLine - contentLengthPos), out contentLength);
+        }
+        Console.WriteLine("===== Parsed =====");
         Console.WriteLine("Method: {0}", method);
         Console.WriteLine("Path: \"{0}\"", path);
         Console.WriteLine("Version: \"{0}\"", ver);
+        Console.WriteLine("Content-Length: {0}", contentLength);
 
-        HttpResponse response = Handle(method, path);
+        while (contentLength > 0 && request.Count < position + 4 + contentLength)
+        {
+            int readed = clientSocket.Receive(buffer);
+            if (readed == 0)
+                break;
+            request.AddRange(buffer.Take(readed));
+        }
+        byte[]? requestContent = null;
+        if (contentLength > 0)
+        {
+            requestContent = request.Skip(position + 4).Take(contentLength).ToArray();
+        }
+
+        HttpResponse response = Handle(method, path, requestContent);
 
         StringBuilder serverResponse = new StringBuilder(
               "HTTP/1.0 200 OK\r\n"
