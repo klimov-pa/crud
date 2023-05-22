@@ -33,6 +33,24 @@ class HttpResponse
     public HttpStatusCode StatusCode = 0;
 }
 
+class Parameters
+{
+    public static Dictionary<string, string> Parse(string text)
+    {
+        Dictionary<string, string> result = new();
+        string[] parameters = text.Split('&');
+        foreach (string parameter in parameters)
+        {
+            string[] keyValuePair = parameter.Split('=');
+            if (keyValuePair.Length > 0)
+                result[keyValuePair[0]] = keyValuePair[1];
+            else
+                result[keyValuePair[0]] = "";
+        }
+        return result;
+    }
+}
+
 class Person
 {
     public string FirstName = "";
@@ -222,28 +240,12 @@ class Program
         {
             var pathParams = pathAndParams.Substring(questionMark + 1, pathAndParams.Length - questionMark - 1);
             string[] parameters = pathParams.Split('&');
-            foreach (string parameter in parameters)
-            {
-                string[] keyValuePair = parameter.Split('=');
-                if (keyValuePair.Length > 0)
-                    pathParameters[keyValuePair[0]] = keyValuePair[1];
-                else
-                    pathParameters[keyValuePair[0]] = "";
-            }
+            pathParameters = Parameters.Parse(pathParams);
         }
         Dictionary<string, string> postParameters = new Dictionary<string, string>();
         if (method == "POST" && requestContent != null)
         {
-            Console.WriteLine(Encoding.ASCII.GetString(requestContent));
-            string[] parameters = Encoding.ASCII.GetString(requestContent).Split('&');
-            foreach (string parameter in parameters)
-            {
-                string[] keyValuePair = parameter.Split('=');
-                if (keyValuePair.Length > 0)
-                    postParameters[keyValuePair[0]] = keyValuePair[1];
-                else
-                    postParameters[keyValuePair[0]] = "";
-            }
+            postParameters = Parameters.Parse(Encoding.ASCII.GetString(requestContent));
         }
         HttpResponse? response = null;
         if (response == null && path == "/" || path.ToLower() == "/index")
