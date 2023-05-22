@@ -75,12 +75,21 @@ class Program
 
     private void appendHeader(StringBuilder content, string title)
     {
-        content.Append($"<!DOCTYPE html><html lang=\"en\"><head><title>{title}</title></head><body>");
+        content.Append("<!DOCTYPE html><meta charset=\"UTF-8\"><html lang=\"en\"><head><title>");
+        content.Append(title);
+        content.Append("</title></head><body><header>");
+        content.Append("<ul style=\"display:flex; flex-direction:row; list-style:none;\">");
+        content.Append("<li style=\"padding:0.3em;\"><a href=\"/\">Index</a></li>");
+        content.Append("<li style=\"padding:0.3em;\"><a href=\"/list\">People</a></li>");
+        content.Append("<li style=\"padding:0.3em;\"><a href=\"/add\">Add Person</a></li>");
+        content.Append("</ul></header>");
     }
 
     private void appendFooter(StringBuilder content)
     {
-        content.Append("</body></html>");
+        content.Append("<footer style=\"margin-top:0.5em;\">");
+        content.Append($"<div>{System.DateTime.Now.Year} Rights reserved</div>");
+        content.Append("</footer></body></html>");
     }
 
     private HttpResponse responseFromContent(string title, string content)
