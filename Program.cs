@@ -33,18 +33,25 @@ class Program
         content.Append("</body></html>");
     }
 
+    private HttpResponse responseFromContent(string title, string content)
+    {
+        var html = new StringBuilder();
+        appendHeader(html, title);
+        html.Append(content);
+        appendFooter(html);
+        return new HttpResponse {
+            ContentType = "text/html; charset=utf-8",
+            ContentBytes = Encoding.UTF8.GetBytes(html.ToString()),
+        };
+    }
+
     private HttpResponse index(string method, string path,
         Dictionary<string, string> pathParameters,
         Dictionary<string, string> postParameters)
     {
         StringBuilder responseContent = new StringBuilder();
-        appendHeader(responseContent, "Index");
         responseContent.Append("Hello World");
-        appendFooter(responseContent);
-        return new HttpResponse {
-            ContentType = "text/html; charset=utf-8",
-            ContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString()),
-        };
+        return responseFromContent("Index", responseContent.ToString());
     }
 
     private HttpResponse? list(string method, string path,
@@ -52,14 +59,9 @@ class Program
         Dictionary<string, string> postParameters)
     {
         var content = new StringBuilder();
-        appendHeader(content, "People");
         foreach (Person person in people)
             content.Append($"<li>{person.FirstName} {person.LastName} {person.BirthYear}</li>");
-        appendFooter(content);
-        return new HttpResponse {
-            ContentType = "text/html; charset=utf-8",
-            ContentBytes = Encoding.UTF8.GetBytes(content.ToString()),
-        };
+        return responseFromContent("People", content.ToString());
     }
 
     private HttpResponse? addPerson(string method, string path,
@@ -72,7 +74,6 @@ class Program
         int.TryParse(postParameters.GetValueOrDefault("birthYear", "0"), out birthYear);
 
         var content = new StringBuilder();
-        appendHeader(content, "Add Person");
         foreach ((string key, string value) in postParameters)
         {
             content.Append($"<p>Params[\"{key}\"] = \"{value}\"</p>");
@@ -105,11 +106,7 @@ class Program
                 content.Append("<p style=\"color:green\">Person successfully added!</p>");
             }
         }
-        appendFooter(content);
-        return new HttpResponse {
-            ContentType = "text/html; charset=utf-8",
-            ContentBytes = Encoding.UTF8.GetBytes(content.ToString()),
-        };
+        return responseFromContent("Add Person", content.ToString());
     }
 
     private HttpResponse? editPerson(string method, string path,
@@ -126,7 +123,6 @@ class Program
         int.TryParse(postParameters.GetValueOrDefault("birthYear", people[id].BirthYear.ToString()), out birthYear);
 
         var content = new StringBuilder();
-        appendHeader(content, "Edit Person");
         foreach ((string key, string value) in postParameters)
         {
             content.Append($"<p>Params[\"{key}\"] = \"{value}\"</p>");
@@ -161,11 +157,7 @@ class Program
                 content.Append("<p style=\"color:green\">Person successfully edited!</p>");
             }
         }
-        appendFooter(content);
-        return new HttpResponse {
-            ContentType = "text/html; charset=utf-8",
-            ContentBytes = Encoding.UTF8.GetBytes(content.ToString()),
-        };
+        return responseFromContent("Edit Person", content.ToString());
     }
 
     private HttpResponse? deletePerson(string method, string path,
@@ -177,7 +169,6 @@ class Program
         if (!(id >= 0 && id < people.Count))
             return null;
         var content = new StringBuilder();
-        appendHeader(content, "Delete Person");
         content.Append("<form method=\"post\" style=\"display:grid; grid-template-columns: auto auto; width:400px;\">");
         content.Append("<label for=\"firstName\">First Name:</label>");
         content.Append($"<input id=\"firstName\" type=\"text\" name=\"firstName\" value=\"{people[id].FirstName}\" disabled>");
@@ -192,11 +183,7 @@ class Program
             people.RemoveAt(id);
             content.Append("<p style=\"color:green\">Person successfully deleted!</p>");
         }
-        appendFooter(content);
-        return new HttpResponse {
-            ContentType = "text/html; charset=utf-8",
-            ContentBytes = Encoding.UTF8.GetBytes(content.ToString()),
-        };
+        return responseFromContent("Remove Person", content.ToString());
     }
 
     private HttpResponse Handle(string method, string pathAndParams, byte[]? requestContent)
@@ -291,12 +278,7 @@ class Program
         }
         if (response == null || response.ContentType == null)
         {
-            StringBuilder responseContent = new StringBuilder();
-            appendHeader(responseContent, "Not Found");
-            responseContent.Append("404<br>Not Found");
-            appendFooter(responseContent);
-            response.ContentType = "text/html; charset=utf-8";
-            response.ContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString());
+            return responseFromContent("Not Found", "404<br>Not Found");
         }
         return response;
     }
