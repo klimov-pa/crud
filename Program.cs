@@ -77,18 +77,18 @@ class Program
     {
         content.Append("<!DOCTYPE html><meta charset=\"UTF-8\"><html lang=\"en\"><head><title>");
         content.Append(title);
-        content.Append("</title></head><body><header>");
-        content.Append("<ul style=\"display:flex; flex-direction:row; list-style:none;\">");
-        content.Append("<li style=\"padding:0.3em;\"><a href=\"/\">Index</a></li>");
-        content.Append("<li style=\"padding:0.3em;\"><a href=\"/list\">People</a></li>");
-        content.Append("<li style=\"padding:0.3em;\"><a href=\"/add\">Add Person</a></li>");
+        content.Append("</title><link href=\"/style.css\" rel=\"stylesheet\"></head><body><header>");
+        content.Append("<ul class=\"nav-bar\">");
+        content.Append("<li><a href=\"/\">Index</a></li>");
+        content.Append("<li><a href=\"/list\">People</a></li>");
+        content.Append("<li><a href=\"/add\">Add Person</a></li>");
         content.Append("</ul></header>");
     }
 
     private void appendFooter(StringBuilder content)
     {
         content.Append("<footer style=\"margin-top:0.5em;\">");
-        content.Append($"<div>{System.DateTime.Now.Year} Rights reserved</div>");
+        content.Append($"<div class=\"copyright\">{System.DateTime.Now.Year} Rights reserved</div>");
         content.Append("</footer></body></html>");
     }
 
@@ -115,8 +115,15 @@ class Program
     private HttpResponse? list(HttpRequest request)
     {
         var content = new StringBuilder();
+        int index = 0;
         foreach (Person person in people)
-            content.Append($"<li>{person.FirstName} {person.LastName} {person.BirthYear}</li>");
+        {
+            content.Append($"<li>{person.FirstName} {person.LastName} {person.BirthYear}");
+            content.Append($" <a href=\"/edit?id={index}\">Edit</a>");
+            content.Append($" <a href=\"/delete?id={index}\">Remove</a>");
+            content.Append("</li>");
+            index += 1;
+        }
         return responseFromContent("People", content.ToString());
     }
 
@@ -301,6 +308,7 @@ class Program
 
             }
             response = new HttpResponse();
+            response.StatusCode = HttpStatusCode.Ok;
             response.ContentBytes = data.ToArray();
             if (path.EndsWith(".png"))
                 response.ContentType = "image/png";
