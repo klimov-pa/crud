@@ -3,11 +3,34 @@ using System.Net;
 using System.Collections.Generic;
 using System.Text;
 
+public enum HttpStatusCode
+{
+    Ok = 200,
+    NotFound = 404,
+}
+
+public static class HttpStatusCodeExtensions
+{
+    public static string GetName(this HttpStatusCode code)
+    {
+        switch (code)
+        {
+            case HttpStatusCode.Ok:
+                return "OK";
+            case HttpStatusCode.NotFound:
+                return "Not Found";
+            default:
+                throw new ArgumentException($"Unknown status code {code}.");
+        }
+    }
+}
+
+
 class HttpResponse
 {
     public string ContentType = null!;
     public byte[] ContentBytes = new byte[0];
-    public int StatusCode = 0;
+    public HttpStatusCode StatusCode = 0;
 }
 
 class Person
@@ -43,7 +66,7 @@ class Program
         return new HttpResponse {
             ContentType = "text/html; charset=utf-8",
             ContentBytes = Encoding.UTF8.GetBytes(html.ToString()),
-            StatusCode = 200,
+            StatusCode = HttpStatusCode.Ok,
         };
     }
 
@@ -280,23 +303,12 @@ class Program
         }
         if (response == null || response.ContentType == null)
         {
-            response = responseFromContent("Not Found", "404<br>Not Found");
-            response.StatusCode = 404;
+            var status = HttpStatusCode.NotFound;
+            response = responseFromContent(status.GetName(),
+                (int)status + "<br>" + status.GetName());
+            response.StatusCode = status;
         }
         return response;
-    }
-
-    private string getStatusCodeName(int statusCode)
-    {
-        switch (statusCode)
-        {
-            case 404:
-                return "Not Found";
-            case 200:
-                return "OK";
-            default:
-                throw new ArgumentException($"Unknown status code {statusCode}.");
-        }
     }
 
     public void Serve(Socket clientSocket)
@@ -373,7 +385,7 @@ class Program
         HttpResponse response = Handle(method, path, requestContent);
 
         StringBuilder serverResponse = new StringBuilder(
-              $"HTTP/1.0 {response.StatusCode} {getStatusCodeName(response.StatusCode)}\r\n"
+              $"HTTP/1.0 {(int)response.StatusCode} {response.StatusCode.GetName()}\r\n"
             + $"Content-Type: {response.ContentType}\r\n"
             + "Connection: close\r\n");
         
