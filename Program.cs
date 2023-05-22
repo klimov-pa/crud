@@ -33,9 +33,143 @@ class Program
         content.Append("</body></html>");
     }
 
+    private HttpResponse index(string method, string path,
+        Dictionary<string, string> pathParameters,
+        Dictionary<string, string> postParameters)
+    {
+        StringBuilder responseContent = new StringBuilder();
+        appendHeader(responseContent, "Index");
+        responseContent.Append("Hello World");
+        appendFooter(responseContent);
+        return new HttpResponse {
+            ContentType = "text/html; charset=utf-8",
+            ContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString()),
+        };
+    }
+
+    private HttpResponse? list(string method, string path,
+        Dictionary<string, string> pathParameters,
+        Dictionary<string, string> postParameters)
+    {
+        var content = new StringBuilder();
+        appendHeader(content, "People");
+        foreach (Person person in people)
+            content.Append($"<li>{person.FirstName} {person.LastName} {person.BirthYear}</li>");
+        appendFooter(content);
+        return new HttpResponse {
+            ContentType = "text/html; charset=utf-8",
+            ContentBytes = Encoding.UTF8.GetBytes(content.ToString()),
+        };
+    }
+
+    private HttpResponse? addPerson(string method, string path,
+        Dictionary<string, string> pathParameters,
+        Dictionary<string, string> postParameters)
+    {
+        string firstName = postParameters.GetValueOrDefault("firstName", "");
+        string lastName = postParameters.GetValueOrDefault("lastName", "");
+        int birthYear = 0;
+        int.TryParse(postParameters.GetValueOrDefault("birthYear", "0"), out birthYear);
+
+        var content = new StringBuilder();
+        appendHeader(content, "Add Person");
+        foreach ((string key, string value) in postParameters)
+        {
+            content.Append($"<p>Params[\"{key}\"] = \"{value}\"</p>");
+        }
+        content.Append("<form method=\"post\" style=\"display:grid; grid-template-columns: auto auto; width:400px;\">");
+        content.Append("<label for=\"firstName\">First Name:</label>");
+        content.Append($"<input id=\"firstName\" type=\"text\" name=\"firstName\" value=\"{firstName}\" required>");
+        content.Append("<label for=\"lastName\">Last Name:</label>");
+        content.Append($"<input id=\"lastName\" type=\"text\" name=\"lastName\" value=\"{lastName}\" required>");
+        content.Append("<label for=\"birthYear\">Birth Year:</label>");
+        content.Append("<input id=\"birthYear\" type=\"number\" name=\"birthYear\" step=\"1\" min=\"1900\"");
+        content.Append($"max=\"{System.DateTime.Now.Year}\" value=\"" + (birthYear == 0 ? "" : birthYear) + "\" required>");
+        content.Append("<div></div><input type=\"submit\">");
+        content.Append("</form>");
+        if (method == "POST")
+        {
+            if (firstName.Length == 0)
+                content.Append("<p style=\"color:red\">Fill in First Name.</p>");
+            else if (lastName.Length == 0)
+                content.Append("<p style=\"color:red\">Fill in Last Name.</p>");
+            else if (birthYear == 0)
+                content.Append("<p style=\"color:red\">Fill in Birth Year.</p>");
+            else if (birthYear < 1900)
+                content.Append("<p style=\"color:red\">Birth Year should be at least 1900.</p>");
+            else if (birthYear > System.DateTime.Now.Year)
+                content.Append($"<p style=\"color:red\">Birth Year should not be greater than {System.DateTime.Now.Year}.</p>");
+            else
+            {
+                people.Add(new Person {FirstName = firstName, LastName = lastName, BirthYear = birthYear});
+                content.Append("<p style=\"color:green\">Person successfully added!</p>");
+            }
+        }
+        appendFooter(content);
+        return new HttpResponse {
+            ContentType = "text/html; charset=utf-8",
+            ContentBytes = Encoding.UTF8.GetBytes(content.ToString()),
+        };
+    }
+
+    private HttpResponse? editPerson(string method, string path,
+        Dictionary<string, string> pathParameters,
+        Dictionary<string, string> postParameters)
+    {
+        int id = people.Count;
+        int.TryParse(pathParameters.GetValueOrDefault("id", id.ToString()), out id);
+        if (!(id >= 0 && id < people.Count))
+            return null;
+        string firstName = postParameters.GetValueOrDefault("firstName", people[id].FirstName);
+        string lastName = postParameters.GetValueOrDefault("lastName", people[id].LastName);
+        int birthYear = 0;
+        int.TryParse(postParameters.GetValueOrDefault("birthYear", people[id].BirthYear.ToString()), out birthYear);
+
+        var content = new StringBuilder();
+        appendHeader(content, "Edit Person");
+        foreach ((string key, string value) in postParameters)
+        {
+            content.Append($"<p>Params[\"{key}\"] = \"{value}\"</p>");
+        }
+        content.Append("<form method=\"post\" style=\"display:grid; grid-template-columns: auto auto; width:400px;\">");
+        content.Append("<label for=\"firstName\">First Name:</label>");
+        content.Append($"<input id=\"firstName\" type=\"text\" name=\"firstName\" value=\"{firstName}\" required>");
+        content.Append("<label for=\"lastName\">Last Name:</label>");
+        content.Append($"<input id=\"lastName\" type=\"text\" name=\"lastName\" value=\"{lastName}\" required>");
+        content.Append("<label for=\"birthYear\">Birth Year:</label>");
+        content.Append("<input id=\"birthYear\" type=\"number\" name=\"birthYear\" step=\"1\" min=\"1900\"");
+        content.Append($"max=\"{System.DateTime.Now.Year}\" value=\"{birthYear}\" required>");
+        content.Append("<div></div><input type=\"submit\">");
+        content.Append("</form>");
+        if (method == "POST")
+        {
+            if (firstName.Length == 0)
+                content.Append("<p style=\"color:red\">Fill in First Name.</p>");
+            else if (lastName.Length == 0)
+                content.Append("<p style=\"color:red\">Fill in Last Name.</p>");
+            else if (birthYear == 0)
+                content.Append("<p style=\"color:red\">Fill in Birth Year.</p>");
+            else if (birthYear < 1900)
+                content.Append($"<p style=\"color:red\">Birth Year {birthYear} should be at least 1900.</p>");
+            else if (birthYear > System.DateTime.Now.Year)
+                content.Append($"<p style=\"color:red\">Birth Year should not be greater than {System.DateTime.Now.Year}.</p>");
+            else
+            {
+                people[id].FirstName = firstName;
+                people[id].LastName = lastName;
+                people[id].BirthYear = birthYear;
+                content.Append("<p style=\"color:green\">Person successfully edited!</p>");
+            }
+        }
+        appendFooter(content);
+        return new HttpResponse {
+            ContentType = "text/html; charset=utf-8",
+            ContentBytes = Encoding.UTF8.GetBytes(content.ToString()),
+        };
+    }
+
     private HttpResponse Handle(string method, string pathAndParams, byte[]? requestContent)
     {
-        HttpResponse response = new HttpResponse();
         int questionMark = pathAndParams.IndexOf('?');
         if (questionMark < 0)
             questionMark = pathAndParams.Length;
@@ -68,128 +202,17 @@ class Program
                     postParameters[keyValuePair[0]] = "";
             }
         }
-        if (path == "/" || path == "/index")
-        {
-            response.ContentType = "text/html; charset=utf-8";
-
-            StringBuilder responseContent = new StringBuilder();
-            appendHeader(responseContent, "Index");
-            responseContent.Append("Hello World");
-            appendFooter(responseContent);
-            response.ContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString());
-        }
-        if (path == "/list")
-        {
-            response.ContentType = "text/html; charset=utf-8";
-            StringBuilder responseContent = new StringBuilder();
-            appendHeader(responseContent, "People");
-            responseContent.Append("<ol>");
-            foreach (Person person in people)
-            {
-                responseContent.Append($"<li>{person.FirstName} {person.LastName} {person.BirthYear}</li>");
-            }
-            responseContent.Append("</ol>");
-            appendFooter(responseContent);
-            response.ContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString());
-        }
-        if (path == "/add")
-        {
-            string firstName = postParameters.GetValueOrDefault("firstName", "");
-            string lastName = postParameters.GetValueOrDefault("lastName", "");
-            int birthYear = 0;
-            int.TryParse(postParameters.GetValueOrDefault("birthYear", "0"), out birthYear);
-
-            response.ContentType = "text/html; charset=utf-8";
-            var content = new StringBuilder();
-            appendHeader(content, "Add Person");
-            foreach ((string key, string value) in postParameters)
-            {
-                content.Append($"<p>Params[\"{key}\"] = \"{value}\"</p>");
-            }
-            content.Append("<form method=\"post\" style=\"display:grid; grid-template-columns: auto auto; width:400px;\">");
-            content.Append("<label for=\"firstName\">First Name:</label>");
-            content.Append($"<input id=\"firstName\" type=\"text\" name=\"firstName\" value=\"{firstName}\">");
-            content.Append("<label for=\"lastName\">Last Name:</label>");
-            content.Append($"<input id=\"lastName\" type=\"text\" name=\"lastName\" value=\"{lastName}\">");
-            content.Append("<label for=\"birthYear\">Birth Year:</label>");
-            content.Append("<input id=\"birthYear\" type=\"number\" name=\"birthYear\" value=\"" + (birthYear == 0 ? "" : birthYear) + "\">");
-            content.Append("<div></div><input type=\"submit\">");
-            content.Append("</form>");
-            if (method == "POST")
-            {
-                if (firstName.Length == 0)
-                    content.Append("<p style=\"color:red\">Fill in First Name.</p>");
-                else if (lastName.Length == 0)
-                    content.Append("<p style=\"color:red\">Fill in Last Name.</p>");
-                else if (birthYear == 0)
-                    content.Append("<p style=\"color:red\">Fill in Birth Year.</p>");
-                else if (birthYear < 1900)
-                    content.Append("<p style=\"color:red\">Birth Year should be at least 1900.</p>");
-                else if (birthYear > System.DateTime.Now.Year)
-                    content.Append($"<p style=\"color:red\">Birth Year should not be greater than {System.DateTime.Now.Year}.</p>");
-                else
-                {
-                    people.Add(new Person {FirstName = firstName, LastName = lastName, BirthYear = birthYear});
-                    content.Append("<p style=\"color:green\">Person successfully added!</p>");
-                }
-            }
-            appendFooter(content);
-            response.ContentBytes = Encoding.UTF8.GetBytes(content.ToString());
+        HttpResponse? response = null;
+        if (response == null && path == "/" || path.ToLower() == "/index")
+            response = index(method, path, pathParameters, postParameters);
+        if (response == null && path == "/list")
+            response = list(method, path, pathParameters, postParameters);
+        if (response == null && path == "/add")
+            response = addPerson(method, path, pathParameters, postParameters);
+        if (response == null && path == "/edit")
+            response = editPerson(method, path, pathParameters, postParameters);
+        if (response != null)
             return response;
-        }
-        if (path == "/edit")
-        {
-            int id = people.Count;
-            int.TryParse(pathParameters.GetValueOrDefault("id", id.ToString()), out id);
-            if (id >= 0 && id < people.Count)
-            {
-                string firstName = postParameters.GetValueOrDefault("firstName", people[id].FirstName);
-                string lastName = postParameters.GetValueOrDefault("lastName", people[id].LastName);
-                int birthYear = 0;
-                int.TryParse(postParameters.GetValueOrDefault("birthYear", people[id].BirthYear.ToString()), out birthYear);
-
-                response.ContentType = "text/html; charset=utf-8";
-                var content = new StringBuilder();
-                appendHeader(content, "Edit Person");
-                foreach ((string key, string value) in postParameters)
-                {
-                    content.Append($"<p>Params[\"{key}\"] = \"{value}\"</p>");
-                }
-                content.Append("<form method=\"post\" style=\"display:grid; grid-template-columns: auto auto; width:400px;\">");
-                content.Append("<label for=\"firstName\">First Name:</label>");
-                content.Append($"<input id=\"firstName\" type=\"text\" name=\"firstName\" value=\"{firstName}\" required>");
-                content.Append("<label for=\"lastName\">Last Name:</label>");
-                content.Append($"<input id=\"lastName\" type=\"text\" name=\"lastName\" value=\"{lastName}\" required>");
-                content.Append("<label for=\"birthYear\">Birth Year:</label>");
-                content.Append("<input id=\"birthYear\" type=\"number\" name=\"birthYear\" step=\"1\" min=\"1900\"");
-                content.Append($"max=\"{System.DateTime.Now.Year}\" value=\"{birthYear}\" required>");
-                content.Append("<div></div><input type=\"submit\">");
-                content.Append("</form>");
-                if (method == "POST")
-                {
-                    if (firstName.Length == 0)
-                        content.Append("<p style=\"color:red\">Fill in First Name.</p>");
-                    else if (lastName.Length == 0)
-                        content.Append("<p style=\"color:red\">Fill in Last Name.</p>");
-                    else if (birthYear == 0)
-                        content.Append("<p style=\"color:red\">Fill in Birth Year.</p>");
-                    else if (birthYear < 1900)
-                        content.Append($"<p style=\"color:red\">Birth Year {birthYear} should be at least 1900.</p>");
-                    else if (birthYear > System.DateTime.Now.Year)
-                        content.Append($"<p style=\"color:red\">Birth Year should not be greater than {System.DateTime.Now.Year}.</p>");
-                    else
-                    {
-                        people[id].FirstName = firstName;
-                        people[id].LastName = lastName;
-                        people[id].BirthYear = birthYear;
-                        content.Append("<p style=\"color:green\">Person successfully edited!</p>");
-                    }
-                }
-                appendFooter(content);
-                response.ContentBytes = Encoding.UTF8.GetBytes(content.ToString());
-                return response;
-            }
-        }
         Stream? f = null;
         try
         {
@@ -216,6 +239,7 @@ class Program
                 }
 
             }
+            response = new HttpResponse();
             response.ContentBytes = data.ToArray();
             if (path.EndsWith(".png"))
                 response.ContentType = "image/png";
@@ -232,7 +256,7 @@ class Program
             else
                 response.ContentType = "application/octet-stream";
         }
-        if (response.ContentType == null)
+        if (response == null || response.ContentType == null)
         {
             StringBuilder responseContent = new StringBuilder();
             appendHeader(responseContent, "Not Found");
