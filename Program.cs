@@ -25,6 +25,14 @@ public static class HttpStatusCodeExtensions
     }
 }
 
+class HttpRequest
+{
+    public string Method = null!;
+    public string Path = null!;
+    public Dictionary<string, string> PathParameters = null!;
+    public Dictionary<string, string> PostParameters = null!;
+    public byte[]? Body = null;
+}
 
 class HttpResponse
 {
@@ -88,18 +96,14 @@ class Program
         };
     }
 
-    private HttpResponse index(string method, string path,
-        Dictionary<string, string> pathParameters,
-        Dictionary<string, string> postParameters)
+    private HttpResponse index(HttpRequest request)
     {
         StringBuilder responseContent = new StringBuilder();
         responseContent.Append("Hello World");
         return responseFromContent("Index", responseContent.ToString());
     }
 
-    private HttpResponse? list(string method, string path,
-        Dictionary<string, string> pathParameters,
-        Dictionary<string, string> postParameters)
+    private HttpResponse? list(HttpRequest request)
     {
         var content = new StringBuilder();
         foreach (Person person in people)
@@ -107,17 +111,15 @@ class Program
         return responseFromContent("People", content.ToString());
     }
 
-    private HttpResponse? addPerson(string method, string path,
-        Dictionary<string, string> pathParameters,
-        Dictionary<string, string> postParameters)
+    private HttpResponse? addPerson(HttpRequest request)
     {
-        string firstName = postParameters.GetValueOrDefault("firstName", "");
-        string lastName = postParameters.GetValueOrDefault("lastName", "");
+        string firstName = request.PostParameters.GetValueOrDefault("firstName", "");
+        string lastName = request.PostParameters.GetValueOrDefault("lastName", "");
         int birthYear = 0;
-        int.TryParse(postParameters.GetValueOrDefault("birthYear", "0"), out birthYear);
+        int.TryParse(request.PostParameters.GetValueOrDefault("birthYear", "0"), out birthYear);
 
         var content = new StringBuilder();
-        foreach ((string key, string value) in postParameters)
+        foreach ((string key, string value) in request.PostParameters)
         {
             content.Append($"<p>Params[\"{key}\"] = \"{value}\"</p>");
         }
@@ -131,7 +133,7 @@ class Program
         content.Append($"max=\"{System.DateTime.Now.Year}\" value=\"" + (birthYear == 0 ? "" : birthYear) + "\" required>");
         content.Append("<div></div><input type=\"submit\">");
         content.Append("</form>");
-        if (method == "POST")
+        if (request.Method == "POST")
         {
             if (firstName.Length == 0)
                 content.Append("<p style=\"color:red\">Fill in First Name.</p>");
@@ -152,21 +154,19 @@ class Program
         return responseFromContent("Add Person", content.ToString());
     }
 
-    private HttpResponse? editPerson(string method, string path,
-        Dictionary<string, string> pathParameters,
-        Dictionary<string, string> postParameters)
+    private HttpResponse? editPerson(HttpRequest request)
     {
         int id = people.Count;
-        int.TryParse(pathParameters.GetValueOrDefault("id", id.ToString()), out id);
+        int.TryParse(request.PathParameters.GetValueOrDefault("id", id.ToString()), out id);
         if (!(id >= 0 && id < people.Count))
             return null;
-        string firstName = postParameters.GetValueOrDefault("firstName", people[id].FirstName);
-        string lastName = postParameters.GetValueOrDefault("lastName", people[id].LastName);
+        string firstName = request.PostParameters.GetValueOrDefault("firstName", people[id].FirstName);
+        string lastName = request.PostParameters.GetValueOrDefault("lastName", people[id].LastName);
         int birthYear = 0;
-        int.TryParse(postParameters.GetValueOrDefault("birthYear", people[id].BirthYear.ToString()), out birthYear);
+        int.TryParse(request.PostParameters.GetValueOrDefault("birthYear", people[id].BirthYear.ToString()), out birthYear);
 
         var content = new StringBuilder();
-        foreach ((string key, string value) in postParameters)
+        foreach ((string key, string value) in request.PostParameters)
         {
             content.Append($"<p>Params[\"{key}\"] = \"{value}\"</p>");
         }
@@ -180,7 +180,7 @@ class Program
         content.Append($"max=\"{System.DateTime.Now.Year}\" value=\"{birthYear}\" required>");
         content.Append("<div></div><input type=\"submit\">");
         content.Append("</form>");
-        if (method == "POST")
+        if (request.Method == "POST")
         {
             if (firstName.Length == 0)
                 content.Append("<p style=\"color:red\">Fill in First Name.</p>");
@@ -203,12 +203,10 @@ class Program
         return responseFromContent("Edit Person", content.ToString());
     }
 
-    private HttpResponse? deletePerson(string method, string path,
-        Dictionary<string, string> pathParameters,
-        Dictionary<string, string> postParameters)
+    private HttpResponse? deletePerson(HttpRequest request)
     {
         int id = people.Count;
-        int.TryParse(pathParameters.GetValueOrDefault("id", id.ToString()), out id);
+        int.TryParse(request.PathParameters.GetValueOrDefault("id", id.ToString()), out id);
         if (!(id >= 0 && id < people.Count))
             return null;
         var content = new StringBuilder();
@@ -221,7 +219,7 @@ class Program
         content.Append($"<input id=\"birthYear\" type=\"number\" name=\"birthYear\" value=\"{people[id].BirthYear}\" disabled>");
         content.Append("<div></div><button type=\"submit\">Delete</button>");
         content.Append("</form>");
-        if (method == "POST")
+        if (request.Method == "POST")
         {
             people.RemoveAt(id);
             content.Append("<p style=\"color:green\">Person successfully deleted!</p>");
@@ -247,17 +245,24 @@ class Program
         {
             postParameters = Parameters.Parse(Encoding.ASCII.GetString(requestContent));
         }
+        var request = new HttpRequest {
+            Method = method,
+            Path = path,
+            PathParameters = pathParameters,
+            PostParameters = postParameters,
+            Body = requestContent,
+        };
         HttpResponse? response = null;
         if (response == null && path == "/" || path.ToLower() == "/index")
-            response = index(method, path, pathParameters, postParameters);
+            response = index(request);
         if (response == null && path == "/list")
-            response = list(method, path, pathParameters, postParameters);
+            response = list(request);
         if (response == null && path == "/add")
-            response = addPerson(method, path, pathParameters, postParameters);
+            response = addPerson(request);
         if (response == null && path == "/edit")
-            response = editPerson(method, path, pathParameters, postParameters);
+            response = editPerson(request);
         if (response == null && path == "/delete")
-            response = deletePerson(method, path, pathParameters, postParameters);
+            response = deletePerson(request);
         if (response != null)
             return response;
         Stream? f = null;
