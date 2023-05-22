@@ -23,25 +23,41 @@ class Program
         new Person {FirstName = "Sarah", LastName = "Smith", BirthYear = 1985},
     });
 
+    private void appendHeader(StringBuilder content, string title)
+    {
+        content.Append($"<!DOCTYPE html><html lang=\"en\"><head><title>{title}</title></head><body>");
+    }
+
+    private void appendFooter(StringBuilder content)
+    {
+        content.Append("</body></html>");
+    }
+
     private HttpResponse Handle(string method, string path)
     {
         HttpResponse response = new HttpResponse();
         if (path == "/" || path == "/index")
         {
             response.ContentType = "text/html; charset=utf-8";
-            String responseContent = $"<!DOCTYPE html>\n<html lang=\"en\"><head><title>Test</title></head><body>Hello World</body></html>";
-            response.ContentBytes = Encoding.UTF8.GetBytes(responseContent);
+
+            StringBuilder responseContent = new StringBuilder();
+            appendHeader(responseContent, "Index");
+            responseContent.Append("Hello World");
+            appendFooter(responseContent);
+            response.ContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString());
         }
         if (path == "/list")
         {
             response.ContentType = "text/html; charset=utf-8";
-            StringBuilder responseContent = new StringBuilder($"<!DOCTYPE html>\n<html lang=\"en\"><head><title>People</title></head><body>");
+            StringBuilder responseContent = new StringBuilder();
+            appendHeader(responseContent, "People");
             responseContent.Append("<ol>");
             foreach (Person person in people)
             {
                 responseContent.Append($"<li>{person.FirstName} {person.LastName} {person.BirthYear}</li>");
             }
-            responseContent.Append("</ol></body></html>");
+            responseContent.Append("</ol>");
+            appendFooter(responseContent);
             response.ContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString());
         }
         Stream? f = null;
@@ -75,9 +91,12 @@ class Program
         }
         if (response.ContentType == null)
         {
-            String responseContent = $"<!DOCTYPE html>\n<html lang=\"en\"><head><title>Not Found</title></head><body>404<br>Not Found</body></html>";
+            StringBuilder responseContent = new StringBuilder();
+            appendHeader(responseContent, "Not Found");
+            responseContent.Append("404<br>Not Found");
+            appendFooter(responseContent);
             response.ContentType = "text/html; charset=utf-8";
-            response.ContentBytes = Encoding.UTF8.GetBytes(responseContent);
+            response.ContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString());
         }
         return response;
     }
