@@ -3,6 +3,12 @@ using System.Net;
 using System.Collections.Generic;
 using System.Text;
 
+class HttpResponse
+{
+    public string ContentType = null!;
+    public byte[] ContentBytes = new byte[0];
+}
+
 class Person
 {
     public string FirstName = "";
@@ -16,6 +22,65 @@ class Program
         new Person {FirstName = "John", LastName = "Wick", BirthYear = 1980},
         new Person {FirstName = "Sarah", LastName = "Smith", BirthYear = 1985},
     });
+
+    private HttpResponse Handle(string method, string path)
+    {
+        HttpResponse response = new HttpResponse();
+        if (path == "/" || path == "/index")
+        {
+            response.ContentType = "text/html; charset=utf-8";
+            String responseContent = $"<!DOCTYPE html>\n<html lang=\"en\"><head><title>Test</title></head><body>Hello World</body></html>";
+            response.ContentBytes = Encoding.UTF8.GetBytes(responseContent);
+        }
+        if (path == "/list")
+        {
+            response.ContentType = "text/html; charset=utf-8";
+            StringBuilder responseContent = new StringBuilder($"<!DOCTYPE html>\n<html lang=\"en\"><head><title>People</title></head><body>");
+            responseContent.Append("<ol>");
+            foreach (Person person in people)
+            {
+                responseContent.Append($"<li>{person.FirstName} {person.LastName} {person.BirthYear}</li>");
+            }
+            responseContent.Append("</ol></body></html>");
+            response.ContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString());
+        }
+        Stream? f = null;
+        try
+        {
+            if (path.Length > 2)
+            	f = File.Open(path.Substring(1, path.Length - 1), FileMode.Open);
+        }
+        catch (System.IO.FileNotFoundException)
+        {
+            f = null;
+        }
+        if (f != null)
+        {
+            List<byte> data = new List<byte>();
+            using (BinaryReader br = new BinaryReader(f))
+            {
+                var buffer1 = new byte[256];
+
+                while (true)
+                {
+                    int readed = br.Read(buffer1);
+                    if (readed == 0)
+                        break;
+                    data.AddRange(buffer1.Take(readed));
+                }
+
+            }
+            response.ContentBytes = data.ToArray();
+            response.ContentType = "image/png";
+        }
+        if (response.ContentType == null)
+        {
+            String responseContent = $"<!DOCTYPE html>\n<html lang=\"en\"><head><title>Not Found</title></head><body>404<br>Not Found</body></html>";
+            response.ContentType = "text/html; charset=utf-8";
+            response.ContentBytes = Encoding.UTF8.GetBytes(responseContent);
+        }
+        return response;
+    }
 
     public void Serve(Socket clientSocket)
     {
@@ -59,73 +124,24 @@ class Program
         Console.WriteLine("Method: {0}", method);
         Console.WriteLine("Path: \"{0}\"", path);
         Console.WriteLine("Version: \"{0}\"", ver);
-        String contentType = "text/html";
-        byte[]? responseContentBytes = null;
-        if (path == "/" || path == "/index")
-        {
-            String responseContent = $"<!DOCTYPE html>\n<html lang=\"en\"><head><title>Test</title></head><body>Hello World</body></html>";
-            responseContentBytes = Encoding.UTF8.GetBytes(responseContent);
-        }
-        if (path == "/list")
-        {
-            StringBuilder responseContent = new StringBuilder($"<!DOCTYPE html>\n<html lang=\"en\"><head><title>People</title></head><body>");
-            responseContent.Append("<ol>");
-            foreach (Person person in people)
-            {
-                responseContent.Append($"<li>{person.FirstName} {person.LastName} {person.BirthYear}</li>");
-            }
-            responseContent.Append("</ol></body></html>");
-            responseContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString());
-        }
-        Stream? f = null;
-        try
-        {
-            if (path.Length > 2)
-            	f = File.Open(path.Substring(1, path.Length - 1), FileMode.Open);
-        }
-        catch (System.IO.FileNotFoundException)
-        {
-            f = null;
-        }
-        if (f != null)
-        {
-            List<byte> data = new List<byte>();
-            using (BinaryReader br = new BinaryReader(f))
-            {
-                var buffer1 = new byte[256];
 
-                while (true)
-                {
-                    int readed = br.Read(buffer1);
-                    if (readed == 0)
-                        break;
-                    data.AddRange(buffer1.Take(readed));
-                }
+        HttpResponse response = Handle(method, path);
 
-            }
-            responseContentBytes = data.ToArray();
-            contentType = "image/png";
-        }
-        if (responseContentBytes == null)
-        {
-            String responseContent = $"<!DOCTYPE html>\n<html lang=\"en\"><head><title>Test</title></head><body>404<br>Not Found</body></html>";
-            responseContentBytes = Encoding.UTF8.GetBytes(responseContent);
-        }
         StringBuilder serverResponse = new StringBuilder(
               "HTTP/1.0 200 OK\r\n"
-            + $"Content-Type: {contentType}\r\n"
+            + $"Content-Type: {response.ContentType}\r\n"
             + "Connection: close\r\n");
         
-        serverResponse.AppendFormat("Content-Length: {0}\r\n", responseContentBytes.Length);
+        serverResponse.AppendFormat("Content-Length: {0}\r\n", response.ContentBytes.Length);
         serverResponse.Append("\r\n");
         
         Console.WriteLine("============ Response Headers ============");
         Console.WriteLine(serverResponse);
         Console.WriteLine("========================");
         clientSocket.Send(Encoding.ASCII.GetBytes(serverResponse.ToString()), SocketFlags.None);
-        for (int bytesSent = 0; bytesSent < responseContentBytes.Length;)
+        for (int bytesSent = 0; bytesSent < response.ContentBytes.Length;)
         {
-            bytesSent += clientSocket.Send(responseContentBytes, bytesSent, responseContentBytes.Length - bytesSent, SocketFlags.None);
+            bytesSent += clientSocket.Send(response.ContentBytes, bytesSent, response.ContentBytes.Length - bytesSent, SocketFlags.None);
         }
         clientSocket.Close();
     }
