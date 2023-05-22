@@ -3,9 +3,21 @@ using System.Net;
 using System.Collections.Generic;
 using System.Text;
 
+class Person
+{
+    public string FirstName = "";
+    public string LastName = "";
+    public int BirthYear;
+}
+
 class Program
 {
-    public static void Serve(Socket clientSocket)
+    List<Person> people = new List<Person>(new Person[] {
+        new Person {FirstName = "John", LastName = "Wick", BirthYear = 1980},
+        new Person {FirstName = "Sarah", LastName = "Smith", BirthYear = 1985},
+    });
+
+    public void Serve(Socket clientSocket)
     {
         byte[] buffer = new byte[256];
         List<byte> request = new List<byte>();
@@ -49,6 +61,22 @@ class Program
         Console.WriteLine("Version: \"{0}\"", ver);
         String contentType = "text/html";
         byte[]? responseContentBytes = null;
+        if (path == "/" || path == "/index")
+        {
+            String responseContent = $"<!DOCTYPE html>\n<html lang=\"en\"><head><title>Test</title></head><body>Hello World</body></html>";
+            responseContentBytes = Encoding.UTF8.GetBytes(responseContent);
+        }
+        if (path == "/list")
+        {
+            StringBuilder responseContent = new StringBuilder($"<!DOCTYPE html>\n<html lang=\"en\"><head><title>People</title></head><body>");
+            responseContent.Append("<ol>");
+            foreach (Person person in people)
+            {
+                responseContent.Append($"<li>{person.FirstName} {person.LastName} {person.BirthYear}</li>");
+            }
+            responseContent.Append("</ol></body></html>");
+            responseContentBytes = Encoding.UTF8.GetBytes(responseContent.ToString());
+        }
         Stream? f = null;
         try
         {
@@ -78,9 +106,9 @@ class Program
             responseContentBytes = data.ToArray();
             contentType = "image/png";
         }
-        else
+        if (responseContentBytes == null)
         {
-            String responseContent = $"<!DOCTYPE html>\n<html lang=\"en\"><head><title>Test</title></head><body>Hello World<br>{path}<img src=\"qwe.png\"></body></html>";
+            String responseContent = $"<!DOCTYPE html>\n<html lang=\"en\"><head><title>Test</title></head><body>404<br>Not Found</body></html>";
             responseContentBytes = Encoding.UTF8.GetBytes(responseContent);
         }
         StringBuilder serverResponse = new StringBuilder(
@@ -125,11 +153,12 @@ class Program
 
         // start listening
         listenSocket.Listen(backlog);
+        Program app = new Program();
         while (true)
         {
             // accept new client
             Socket clientSocket = listenSocket.Accept();
-            Serve(clientSocket);
+            app.Serve(clientSocket);
         }
     }
 }
